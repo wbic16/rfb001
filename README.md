@@ -12,3 +12,8 @@ API Calls
 Usage
 -----
 Run this bot in replit with `cargo run`
+
+TODO
+----
+* Integrate https://discord.com/developers/applications/1288337274366332958/information
+  * See: https://discord.com/developers/docs/activities/building-an-activity
