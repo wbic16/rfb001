@@ -12,7 +12,7 @@ API Calls
 * /api/v1/clear: resets the leaderboard
 * /api/v1/get: fetches a specific user record
 * /api/v1/set: submits a user record
-* /api/v1/scan: Scans the #share-projects channel of your discord for new content
+* /api/v1/scan: Scans the #weekly-updates channel of your discord for new content
 
 Usage
 -----
