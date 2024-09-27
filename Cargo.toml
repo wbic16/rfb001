@@ -1,5 +1,5 @@
 [package]
-name = "new-project"
+name = "RFB001"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,5 @@ edition = "2021"
 axum = "0.7.6"
 axum-server = "0.7.1"
 libphext = "0.1.7"
+poise = "0.6.1"
 tokio = { version = "1.40.0", features = ["rt-multi-thread"] }
