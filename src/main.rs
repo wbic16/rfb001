@@ -4,7 +4,11 @@ use std::net::SocketAddr;
 use poise::serenity_prelude as serenity;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
+use serenity::futures::StreamExt;
 use std::env;
+use std::collections::HashSet;
+use chrono::{Utc, Datelike, Duration};
+
 
 struct Data {} // User data, which is stored and accessible in all command invocations
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -21,10 +25,56 @@ async fn ping(
     Ok(())
 }
 
+#[poise::command(slash_command, prefix_command)]
+async fn get_weekly_updates(ctx: Context<'_>) -> Result<(), Error> {
+    let channel_name = "weekly-updates";
+    
+    // Get a clone of the Guild object, which is Send
+    let guild = ctx.guild().ok_or("This command must be used in a server")?.clone();
+    
+    let channel = guild
+        .channels
+        .values()
+        .find(|c| c.name == channel_name)
+        .ok_or(format!("Could not find #{} channel", channel_name))?;
+
+    let http = &ctx.http(); // Store the reference to ctx.http()
+    let now = Utc::now();
+    let days_since_sunday = now.weekday().num_days_from_sunday() + 1;
+    let last_sunday = (now - Duration::days(days_since_sunday as i64)).into();
+    let today = now.into();
+
+    let mut users = HashSet::new();
+    let mut messages = channel.id.messages_iter(http).boxed(); // Use the stored http reference
+    while let Some(message_result) = messages.next().await {
+        match message_result {
+            Ok(message) => {
+                if message.timestamp < last_sunday {
+                    break; // Stop iterating if we've reached messages older than last Sunday
+                }
+                if message.timestamp <= today && !message.author.bot {
+                    users.insert(message.author.name.clone());
+                }
+            },
+            Err(error) => {
+                ctx.say(format!("Error fetching messages: {}", error)).await?;
+                return Ok(());
+            }
+        }
+    }
+
+    let response = if users.is_empty() {
+        "No users posted in #weekly-updates last week.".to_string()
+    } else {
+        format!("Users who posted in #weekly-updates last week:\n{}", users.into_iter().collect::<Vec<_>>().join("\n"))
+    };
+
+    ctx.say(response).await?;
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
-    
-
     // Create a simple route handler
     let app = Router::new()
         .route("/", get(index))
@@ -75,18 +125,26 @@ async fn leaders() -> &'static str {
 }
 
 async fn scan() -> &'static str {
+    dotenv::dotenv().ok();
     let token = env::var("RFB001_TOKEN").expect("Set RFB001_TOKEN to your API token.");
 
     let intents = serenity::GatewayIntents::non_privileged();
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![ping()],
+            commands: vec![
+                ping(),
+                get_weekly_updates()
+            ],
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                if let Err(e) = poise::builtins::register_globally(ctx, &framework.options().commands).await {
+                    println!("Error registering commands globally: {}", e);
+                } else {
+                    println!("Commands registered globally");
+                }
                 Ok(Data {})
             })
         })
