@@ -1,2 +1,7 @@
 /target
+
 Cargo.lock
+
+.env
+
+weekly_updates.json
